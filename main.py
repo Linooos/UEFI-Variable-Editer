@@ -14,7 +14,7 @@ import boot_set
 set_auto_boot = True
 cur_title = None
 
-
+global_version = [2,1,0,0]
 
 columns, rows = get_terminal_size()
 print_c("\n" * rows)
@@ -36,6 +36,7 @@ print_c(">自动引导：\n","cyan")
 print_c("自动配置引导会在 保存&写入引导 时将脚本修改到主机引导首位,并在重启时启动脚本，脚本运行后自动删除自身引导使系统引导回到首位\n")
 print_c(      "！！注意！！\n自动引导需要一个已经挂载的Fat32分区10M左右空间以放置引导，请提前挂载！！\n"
       "！！注意！！\n程序暂未添加检测引导选项，如果使用自动配置引导，请勿多次保存配置，这将会导致添加多个引导选项，请重启配置完后再保存。\n","magenta")
+print_c(f"v{global_version[0]}.{global_version[1]}.{global_version[2]}.{global_version[3]}\n")
 print_c("MADE BY 不锈钢电热水壶","grey")
 os.system("pause")
 

@@ -73,11 +73,23 @@ def dumpBios():
 
     #匹配版本号
     version = get_Me_Version()
+    #version = None
     if not version:
         print("终止bios提取...")
-        print(f"如果不希望通过本程序自动提取bios，请将bios提取文件放置于根目录并保存为dump.bin")
-        os.system("pause")
-        return
+        i = True
+        while(i):
+            tmp = input("请在设备管理器中找Intel(R) Management Engine Interface设备-固件版本号，手动输入版本号：(格式x.x 如\"16.1\")")\
+                .split('.')
+            if len(tmp) != 2:
+                print("格式错误")
+                continue
+            if not (tmp[0].isdigit() and tmp[1].isdigit()):
+                print("格式错误")
+                continue
+
+            i = False
+            version = [tmp[0], tmp[1]]
+
     print(f"Intel ME 版本: {version[0]}.{version[1]}")
     restr_get_dir = r".*v"+version[0]+r"\."+version[1]+r".*"
 
