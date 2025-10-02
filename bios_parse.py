@@ -210,7 +210,7 @@ def dump_and_parse_bios(skip = True,redo = False):
         print(os.path.join(current_dir, os.path.join(os.path.dirname(list_result_files[0]))))
         out = run_command([r"parseData\ifrextractor.exe",os.path.join(current_dir,"parseData",pe_file_name)])
         print(out)
-        shutil.rmtree(os.path.join(current_dir,"bios"))
+        #shutil.rmtree(os.path.join(current_dir,"bios"))
 
 def regx_intel_advance_menu():
     # 获取寻找指定的bios文件

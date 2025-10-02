@@ -10,6 +10,11 @@ __pycache__/
 
 config
 dump.bin
+dumpTools/
+configs/
+config.json
+dumptool.zip
+bios/
 bootTools/startup.nsh
 parseData/
 efi/

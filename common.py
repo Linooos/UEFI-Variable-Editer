@@ -8,7 +8,6 @@ background_state = True
 from tqdm import tqdm
 
 import zipfile
-import os
 
 def unzip_file(zip_file_path, extract_to_path):
     with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:

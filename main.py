@@ -11,10 +11,13 @@ import bios_parse
 import setup_var
 from shutil import get_terminal_size
 import boot_set
+from global_configs import global_configs as configs
 set_auto_boot = True
 cur_title = None
 
+#全局变量
 global_version = [2,1,0,0]
+global_configs = configs
 
 columns, rows = get_terminal_size()
 print_c("\n" * rows)
@@ -47,19 +50,78 @@ else:
     bios_parse.init(False,True)
 
 return_string = ("",None)#记录每次指令的返回提示
-load_info = setup_var.load_json()
-if not load_info[0]:
-    if not load_info[1] == "NoFile":
-        print_string = ''
-        for i in load_info[1]:
-            print_string += f"报存选项{i}读取失败，已跳过读取"
-            return_string = (print_string,"red")
-else:
-    return_string = ("读取成功","cyan")
 
+def load_config_files(skip_choose = 0):
+    setup_var.rm_all_var_setting()
+    #选择装载的配置文件（限制2个）
+    global return_string
+    configs_file_list = setup_var.get_all_config_json_files()
+    arg_list = []
+    load_info = None
+    print_string = ''
+
+    #加载指定配置文件
+    state = None
+    if skip_choose == 0:
+        if configs_file_list:
+            try:
+                for i,configs_file_name in enumerate(configs_file_list):
+                    print_c(f"{i+1}: {configs_file_name}")
+                arg_list.append(configs_file_list[int(input("选择装载的配置文件1>"))-1])
+                arg_list.append(configs_file_list[int(input("选择装载的配置文件2>"))-1])
+                state = 0 #指定文件
+            except ValueError:
+                print_string = "自动使用上一次的json"
+                state = 1
+        else:
+            print_string = "无配置文件，使用默认json"
+            state = 2
+    else:
+        state = 1
+
+
+    while True:
+        if state == 0:
+            #使用自定义方案
+            result = global_configs.get_option("loaded_jsons")
+            if not result[0]:
+                print_string = "无全局配置，新建配置并使用默认json"
+                state = 3
+                continue
+            loaded_files_dicts = result[1]
+            if not(loaded_files_dicts[str(0)] == arg_list[0]) and (loaded_files_dicts[str(1)] == arg_list[1]):
+                loaded_files_dicts[str(len(loaded_files_dicts))] = arg_list
+            global_configs.set_option("loaded_jsons_recent", arg_list).save_to_file()
+            break
+        elif state == 1:
+            # 使用上一次方案
+            result = global_configs.get_option("loaded_jsons_recent")
+            arg_list = result[1]
+            break
+        elif state == 2:
+            # 使用空白方案
+            arg_list = []
+            global_configs.set_option("loaded_jsons/0", arg_list).set_option("loaded_jsons_recent", arg_list).save_to_file()
+            break
+        elif state == 3:
+            # 新建全局文件
+            global_configs.set_option("loaded_jsons", {}).set_option("loaded_jsons_recent", []).save_to_file()
+            state = 0
+            continue
+
+    load_info = setup_var.load_json(arg_list)
+    if not load_info[0]:
+        if not load_info[1] == "NoFile":
+            for i in load_info[1]:
+                print_string += f"报存选项{i}读取失败，已跳过读取"
+    else:
+        print_string += f"读取完成"
+
+    return_string = (print_string,"cyan")
+
+load_config_files(0)
 
 while True:
-
     # 打印新页面
     columns, rows = get_terminal_size()
     print_c("\n" * rows)
@@ -81,13 +143,13 @@ while True:
     tmp_str2 = ""
     if set_auto_boot:
         tmp_str = "关闭"
-        tmp_str2 = "3. 写入引导（请勿多次写入，如多次写入请使用文件夹下boot.exe删除多余启动项目)"
+        tmp_str2 = "3. 写入引导并重启"
     else:
         tmp_str = "开启"
-        tmp_str2 = "3. 保存为EFI文件夹（只保存脚本文件夹 .EFI)"
+        tmp_str2 = "3. 保存为EFI文件夹并关闭（只保存脚本文件夹 .EFI)"
 
 
-    arg = input(f"1. 通过变量名称查找选项\n2. 通过菜单名称查找选项\n{tmp_str2}\n4. {tmp_str}自动引导\n5. 删除暂存项目\n6. 重启\n>")
+    arg = input(f"1. 通过变量名称查找选项\n2. 通过菜单名称查找选项\n{tmp_str2}\n4. {tmp_str}自动引导\n5. 删除暂存项目\n6. 删除已有方案\n7. 重载已有方案\n8. 新建json方案\n9. 重新选择json>")
     if arg == '1':
         try:
             name = input("名称：>")
@@ -98,18 +160,27 @@ while True:
             setup_var.print_offset_list(result)
             which = input("哪一个：>")
 
+
             if (which is None) or(which == "") or int(which) > len(result) or int(which) <= 0:
                 return_string = ("无效选择","red")
                 continue
+
+            setup_var.print_loaded_json_files()
+            which_json = input("写入哪个json文件：>")
+
             if (result[int(which) - 1][1]) == "OneOf":
                 setup_var.print_oneOf_option_detail(setup_var.search_oneOf_offset_options_detail(result[int(which)-1][2]))
+
             value = input("改多少：>")
-            if (value == "") or not setup_var.add_var_setting(result[int(which)-1], int(value)):
+            if (value == "") or not setup_var.add_var_setting(result[int(which)-1], int(value),int(which_json)-1) :
                 return_string = ("无效选择","red")
                 continue
+            setup_var.refresh_json()
         except Exception as e:
-            print_c(e,"red")
+            return_string = (e, "red")
             continue
+
+
 
     elif arg == '2':
         try:
@@ -123,17 +194,22 @@ while True:
                 if (which is None) or(which == "") or int(which) > len(result) or int(which) < 0:
                     return_string = ("无效选择","red")
                     continue
+
+                setup_var.print_loaded_json_files()
+                which_json = input("写入哪个json文件：>")
+
                 if (result[int(which) - 1][1]) == "OneOf":
                     setup_var.print_oneOf_option_detail(setup_var.search_oneOf_offset_options_detail(result[int(which) - 1][2]))
                 if int(which) == 0:
                     re_choose = True
                 else:
                     value = input("改多少:>")
-                    if (value == "") or not setup_var.add_var_setting(result[int(which) - 1], int(value)):
+                    if (value == "") or not setup_var.add_var_setting(result[int(which) - 1], int(value),int(which_json)-1):
                         return_string = ("值不符合要求","red")
                         continue
+            setup_var.refresh_json()
         except Exception as e:
-            print_c(e,"red")
+            return_string = (e, "red")
             continue
 
         if (cur_title is None) or re_choose:
@@ -170,8 +246,13 @@ while True:
                         continue
             else:
                 boot_set.save_and_only_create_boot_dir()
+                print_c("即将重启计算机......", "red")
+                os.system("pause")
+                os.system("shutdown /r /t 0")
+                exit(0)
+
         except Exception as e:
-            print_c(e,"red")
+            return_string = (e, "red")
             continue
 
 
@@ -213,20 +294,64 @@ while True:
             index_list.sort()
             for i,elem in enumerate(index_list):
                 setup_var.rm_var_setting(elem-i-1)
+                setup_var.refresh_json()
         except Exception as e:
-            print_c(e,"red")
+            return_string = (e, "red")
             continue
 
     elif arg == '6':
         try:
-            result = input("确定要重启吗？(y/n 默认y)")
-            if result == 'n'or result == 'N'or result == 'no'or result == 'NO'or result == 'No':
-                return_string = ("今日无事可做...","red")
-                continue
-            os.system("shutdown /r /t 0")
+            jsons_dict:dict = global_configs.get_option('loaded_jsons')[1]
+
+            for i, json_file_i in enumerate(jsons_dict.keys()):
+                print_string_ = ''
+                if not jsons_dict[json_file_i]:
+                    print_string_ = "default.json"
+                else:
+                    for elem in jsons_dict[json_file_i]:
+                        print_string_ += os.path.basename(elem)
+                        print_string_ += "  "
+                print_c(f"{i + 1}:{print_string_}", "background")
+
+            which = input("删除哪个>")
+            jsons_dict.pop(str(int(which)-1))
+
+            tmp_dict = {}
+            for i,elem in enumerate(jsons_dict.values()):
+                tmp_dict[str(i)] = elem
+            global_configs.set_option('loaded_jsons',tmp_dict).save_to_file()
+
         except Exception as e:
-            print_c(e,"red")
+            return_string = (e, "red")
             continue
+
+    elif arg == '7':
+        jsons_dict: dict = global_configs.get_option('loaded_jsons')[1]
+
+        try:
+            for i, json_file_i in enumerate(jsons_dict.keys()):
+                print_string_ = ''
+                if not jsons_dict[json_file_i]:
+                    print_string_ = "default.json"
+                else:
+                    for elem in jsons_dict[json_file_i]:
+                        print_string_ += os.path.basename(elem)
+                        print_string_ += "  "
+                print_c(f"{i + 1}:{print_string_}", "background")
+
+            which = input("加载哪个>")
+            global_configs.set_option('loaded_jsons_recent', jsons_dict[str(int(which)-1)]).save_to_file()
+            load_config_files(1)
+        except Exception as e:
+            return_string = (e, "red")
+            continue
+
+    elif arg == '8':
+        name = input("新建名称>")
+        setup_var.create_json(name)
+
+    elif arg == '9':
+        load_config_files(0)
 
     else:
         return_string = ("无法识别的指令...","red")
