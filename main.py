@@ -16,7 +16,7 @@ set_auto_boot = True
 cur_title = None
 
 #全局变量
-global_version = [2,1,0,0]
+global_version = [2,3,0,0]
 global_configs = configs
 
 columns, rows = get_terminal_size()
@@ -65,16 +65,22 @@ def load_config_files(skip_choose = 0):
     if skip_choose == 0:
         if configs_file_list:
             try:
+                columns, rows = get_terminal_size()
+                print_c("\n" * rows)
                 for i,configs_file_name in enumerate(configs_file_list):
-                    print_c(f"{i+1}: {configs_file_name}")
-                arg_list.append(configs_file_list[int(input("选择装载的配置文件1>"))-1])
-                arg_list.append(configs_file_list[int(input("选择装载的配置文件2>"))-1])
+                    print_c(f"{i+1}: {configs_file_name}","background")
+                print_c(f"选择要加载的配置文件>\n", "cyan")
+                arg_list.append(configs_file_list[int(input("选择装载的配置文件1\n>"))-1])
+                arg_list.append(configs_file_list[int(input("选择装载的配置文件2\n>"))-1])
                 state = 0 #指定文件
             except ValueError:
-                print_string = "自动使用上一次的json"
-                state = 1
+                if len(arg_list) == 0:
+                    print_string = "自动使用上一次的json\n"
+                    state = 1
+                elif len(arg_list) == 1:
+                    state = 0
         else:
-            print_string = "无配置文件，使用默认json"
+            print_string = "无配置文件，使用默认json\n"
             state = 2
     else:
         state = 1
@@ -85,12 +91,25 @@ def load_config_files(skip_choose = 0):
             #使用自定义方案
             result = global_configs.get_option("loaded_jsons")
             if not result[0]:
-                print_string = "无全局配置，新建配置并使用默认json"
+                print_string = "无全局配置，新建配置并使用默认json\n"
                 state = 3
                 continue
             loaded_files_dicts = result[1]
-            if not(loaded_files_dicts[str(0)] == arg_list[0]) and (loaded_files_dicts[str(1)] == arg_list[1]):
+
+            state = 0
+            if len(loaded_files_dicts) == len(arg_list):
+                if len(loaded_files_dicts) > 1 :
+                    if not(loaded_files_dicts[str(0)] == arg_list[0]) and (loaded_files_dicts[str(1)] == arg_list[1]):
+                        state = 1
+                else:
+                    if not(loaded_files_dicts[str(0)] == arg_list[0]):
+                        state = 1
+            else:
+                state = 1
+
+            if state ==1:
                 loaded_files_dicts[str(len(loaded_files_dicts))] = arg_list
+
             global_configs.set_option("loaded_jsons_recent", arg_list).save_to_file()
             break
         elif state == 1:
@@ -101,11 +120,11 @@ def load_config_files(skip_choose = 0):
         elif state == 2:
             # 使用空白方案
             arg_list = []
-            global_configs.set_option("loaded_jsons/0", arg_list).set_option("loaded_jsons_recent", arg_list).save_to_file()
+            global_configs.set_option("loaded_jsons/0", ['default.json']).set_option("loaded_jsons_recent", ['default.json']).save_to_file()
             break
         elif state == 3:
             # 新建全局文件
-            global_configs.set_option("loaded_jsons", {}).set_option("loaded_jsons_recent", []).save_to_file()
+            global_configs.set_option("loaded_jsons/0", ['default.json']).set_option("loaded_jsons_recent", ['default.json']).save_to_file()
             state = 0
             continue
 
@@ -149,7 +168,7 @@ while True:
         tmp_str2 = "3. 保存为EFI文件夹并关闭（只保存脚本文件夹 .EFI)"
 
 
-    arg = input(f"1. 通过变量名称查找选项\n2. 通过菜单名称查找选项\n{tmp_str2}\n4. {tmp_str}自动引导\n5. 删除暂存项目\n6. 删除已有方案\n7. 重载已有方案\n8. 新建json方案\n9. 重新选择json>")
+    arg = input(f"1. 通过变量名称查找选项\n2. 通过菜单名称查找选项\n\n{tmp_str2}\n4. {tmp_str}自动引导\n\n5. 删除缓存选项\n\n6. 删除json配置组合\n7. 加载之前使用过的json组合\n8. 新建json配置文件\n9. 新建json配置组合\n>")
     if arg == '1':
         try:
             name = input("名称：>")
